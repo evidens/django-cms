@@ -286,6 +286,8 @@ class Page(MPTTModel):
                     ph.pk = None # make a new instance
                     ph.save()
                     page.placeholders.add(ph)
+                    # update the page copy
+                    page_copy = page
                 if plugins:
                     copy_plugins_to(plugins, ph)
                     
@@ -930,7 +932,7 @@ class Page(MPTTModel):
         Returns this model instance's next sibling in the tree, or
         ``None`` if it doesn't have a next sibling.
         """
-        opts = self._meta
+        opts = self._mptt_meta
         if self.is_root_node():
             filters.update({
                 '%s__isnull' % opts.parent_attr: True,
@@ -963,7 +965,7 @@ class Page(MPTTModel):
         Returns this model instance's previous sibling in the tree, or
         ``None`` if it doesn't have a previous sibling.
         """
-        opts = self._meta
+        opts = self._mptt_meta
         if self.is_root_node():
             filters.update({
                 '%s__isnull' % opts.parent_attr: True,
