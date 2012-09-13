@@ -13,7 +13,7 @@ from cms.test_utils.fixtures.fakemlng import FakemlngFixtures
 from cms.test_utils.project.fakemlng.models import Translations
 from cms.test_utils.project.placeholderapp.models import (Example1, Example2, 
     Example3, Example4, Example5)
-from cms.test_utils.testcases import CMSTestCase, TestCase
+from cms.test_utils.testcases import CMSTestCase
 from cms.test_utils.util.context_managers import (SettingsOverride, 
     UserLoginContext)
 from cms.test_utils.util.mock import AttributeObject
@@ -27,6 +27,7 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponseForbidden, HttpResponse
 from django.template import TemplateSyntaxError, Template
 from django.template.context import Context, RequestContext
+from django.test import TestCase
 
 
 class PlaceholderTestCase(CMSTestCase):
@@ -156,6 +157,52 @@ class PlaceholderTestCase(CMSTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([ph1_pl1, ph1_pl3], list(ph1.cmsplugin_set.order_by('position')))
         self.assertEqual([ph2_pl1, ph1_pl2, ph2_pl2, ph2_pl3], list(ph2.cmsplugin_set.order_by('position')))
+
+    def test_nested_plugin_escapejs(self):
+        """
+        Checks #1366 error condition.
+        When adding/editing a plugin whose icon_src() method returns a URL
+        containing an hyphen, the hyphen is escaped by django escapejs resulting
+        in a incorrect URL
+        """
+        with SettingsOverride(CMS_MODERATOR=False, CMS_PERMISSION=False):
+            ex = Example1(
+                char_1='one',
+                char_2='two',
+                char_3='tree',
+                char_4='four'
+            )
+            ex.save()
+            ph1 = ex.placeholder
+            ###
+            # add the test plugin
+            ###
+            test_plugin = add_plugin(ph1, u"EmptyPlugin", u"en")
+            test_plugin.save()
+            pl_url = "%sedit-plugin/%s/" % (
+                reverse('admin:placeholderapp_example1_change', args=(ex.pk,)),
+                test_plugin.pk)
+            response = self.client.post(pl_url, {})
+            self.assertContains(response,"/static/plugins/empty-image-file.png")
+
+    def test_nested_plugin_escapejs_page(self):
+        """
+        Sibling test of the above, on a page.
+        #1366 does not apply to placeholder defined in a page
+        """
+        with SettingsOverride(CMS_MODERATOR=False, CMS_PERMISSION=False):
+            page = create_page('page', 'col_two.html', 'en')
+            ph1 = page.placeholders.get(slot='col_left')
+            ###
+            # add the test plugin
+            ###
+            test_plugin = add_plugin(ph1, u"EmptyPlugin", u"en")
+            test_plugin.save()
+            pl_url = "%sedit-plugin/%s/" % (
+                reverse('admin:cms_page_change', args=(page.pk,)),
+                test_plugin.pk)
+            response = self.client.post(pl_url, {})
+            self.assertContains(response,"/static/plugins/empty-image-file.png")
 
     def test_placeholder_scanning_fail(self):
         self.assertRaises(TemplateSyntaxError, get_placeholders, 'placeholder_tests/test_eleven.html')

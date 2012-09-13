@@ -26,13 +26,13 @@ def cut_after(node, levels, removed):
         node.children = []
     else:
         removed_local = []
-        for n in node.children:
-            if n.visible:
-                cut_after(n, levels - 1, removed)
+        for child in node.children:
+            if child.visible:
+                cut_after(child, levels - 1, removed)
             else:
-                removed_local.append(n)
-        for n in removed_local:
-            node.children.remove(n)
+                removed_local.append(child)
+        for removed_child in removed_local:
+            node.children.remove(removed_child)
         removed.extend(removed_local)
 
 def remove(node, removed):
@@ -128,8 +128,8 @@ class ShowMenu(InclusionTag):
                 if id_nodes:
                     node = id_nodes[0]
                     nodes = node.children
-                    for n in nodes:
-                        n.parent = None
+                    for remove_parent in nodes:
+                        remove_parent.parent = None
                     from_level += node.level + 1
                     to_level += node.level + 1
                     nodes = flatten(nodes)
@@ -170,8 +170,8 @@ register.tag(ShowMenuBelowId)
 class ShowSubMenu(InclusionTag):
     """
     show the sub menu of the current nav-node.
-    -levels: how many levels deep
-    -temlplate: template used to render the navigation
+    - levels: how many levels deep
+    - template: template used to render the navigation
     """
     name = 'show_sub_menu'
     template = 'menu/dummy.html'
@@ -248,11 +248,11 @@ class ShowBreadcrumb(InclusionTag):
             if node.get_absolute_url() == urllib.unquote(reverse("pages-root")):
                 home = node
         if selected and selected != home:
-            n = selected
-            while n:
-                if n.visible or not only_visible:
-                    ancestors.append(n)
-                n = n.parent
+            node = selected
+            while node:
+                if node.visible or not only_visible:
+                    ancestors.append(node)
+                node = node.parent
         if not ancestors or (ancestors and ancestors[-1] != home) and home:
             ancestors.append(home)
         ancestors.reverse()
@@ -371,7 +371,13 @@ class PageLanguageUrl(InclusionTag):
                 url = page.get_absolute_url(language=lang, fallback=False)
                 url = "/" + lang + url
             except:
-                # no localized path/slug. 
-                url = ''
+                # no localized path/slug
+                if settings.CMS_HIDE_UNTRANSLATED:
+                    # redirect to root url if CMS_HIDE_UNTRANSLATED
+                    url = '/' + lang + '/'
+                else:
+                    # If untranslated pages are shown, this will not redirect
+                    # at all.
+                    url = ''
         return {'content':url}
 register.tag(PageLanguageUrl)
